@@ -702,8 +702,8 @@ bool prio_acquire(int resource_id){
 	if (!r->owner) {
 		r->owner = current;
 		
-		current->status = PROCESS_WAIT;
-		list_add_tail(&current->list, &r->waitqueue);  
+		//current->status = PROCESS_WAIT;
+		//list_add_tail(&current->list, &r->waitqueue);  
 
         //dump_status();
  
@@ -717,25 +717,6 @@ bool prio_acquire(int resource_id){
 		return false;
 	}
 
-	
-
-
-    // else if(r->owner){
-	
-	// //blocked
-    // current->status = PROCESS_WAIT;
-    // list_add_tail(&current->list, &r->waitqueue);
-
-    // // list_for_each(ptr, &r->waitqueue){
-    // //         prc = list_entry(ptr, struct process, list);
-    // //         cnt++;
-    // //     }
-    // // if(cnt>0){
-    // //     printf("cnt>0\n");
-    // // }
-    
-    // return false;
-    // }
 }
 
 void prio_release(int resource_id){
