@@ -215,17 +215,52 @@ struct scheduler fifo_scheduler = {
  ***********************************************************************/
 static struct process *sjf_schedule(void)
 {
-	/**
-	 * Implement your own SJF scheduler here.
-	 */
-	return NULL;
+    struct list_head* ptr;
+    struct process* prc = NULL;
+
+    int min=1000; //lifespan의 min 찾기 위해
+    int cnt=0;
+	
+    if (!current || current->status == PROCESS_WAIT) {
+		goto pick_next;
+	}
+    /* The current process has remaining lifetime. Schedule it again */
+	if (current->age < current->lifespan) {
+		return current;
+	}
+
+pick_next:
+
+    list_for_each(ptr, &readyqueue){
+            prc = list_entry(ptr, struct process, list);
+            cnt++;
+        }
+
+    if(cnt!=0){
+        list_for_each(ptr, &readyqueue){
+            prc = list_entry(ptr, struct process, list);
+            if (min > prc->lifespan)
+                min = prc->lifespan;
+        }
+
+        list_for_each(ptr, &readyqueue){
+            prc = list_entry(ptr, struct process, list);
+            if (min == prc->lifespan){
+                list_del_init(&prc->list);
+                return prc;
+            }
+        }
+
+    }
+
+    return prc;
 }
 
 struct scheduler sjf_scheduler = {
 	.name = "Shortest-Job First",
 	.acquire = fcfs_acquire, /* Use the default FCFS acquire() */
 	.release = fcfs_release, /* Use the default FCFS release() */
-	.schedule = NULL,		 /* TODO: Assign sjf_schedule()
+	.schedule = sjf_schedule,		 /* TODO: Assign sjf_schedule()
 								to this function pointer to activate
 								SJF in the system */
 };
@@ -234,6 +269,84 @@ struct scheduler sjf_scheduler = {
 /***********************************************************************
  * SRTF scheduler
  ***********************************************************************/
+static struct process *srtf_schedule(void)
+{
+    // if(sched->forked){ //새로운 프로세스 생성됐다면..?
+    //     sched->forked(p);
+    // }
+
+    struct list_head* ptr;
+    struct process* prc = NULL;
+
+	int min=1000; //lifespan의 min 찾기 위해
+    int cnt=0;
+	int cur_remain=0;
+
+	list_for_each(ptr, &readyqueue){
+        prc = list_entry(ptr, struct process, list);
+        cnt++;
+    }
+
+    if(cnt!=0){
+        list_for_each(ptr, &readyqueue){
+            prc = list_entry(ptr, struct process, list);
+            if (min > prc->lifespan)
+            	min = prc->lifespan;
+        }
+	}
+
+    if (!current || current->status == PROCESS_WAIT) { //이때는 sjf랑 똑같이?
+		goto pick_next;
+	}
+    /* The current process has remaining lifetime. Schedule it again */
+	if (current->age < current->lifespan) { //이 시점에 다른 프로세스의 lifespan들과 비교 -> preemptive 가능
+		
+		cur_remain = current->lifespan - current->age;
+	
+		if(min < cur_remain){
+				list_for_each(ptr, &readyqueue){
+            		prc = list_entry(ptr, struct process, list);
+            		if (min == prc->lifespan){
+                		list_del_init(&prc->list);
+						list_add(&current->list, &readyqueue);
+                		return prc;
+            		}
+        		}
+			}
+			else{
+				return current;
+			}
+
+	}
+
+pick_next:
+	
+	list_for_each(ptr, &readyqueue){
+            prc = list_entry(ptr, struct process, list);
+            cnt++;
+        }
+
+    if(cnt!=0){
+        list_for_each(ptr, &readyqueue){
+            prc = list_entry(ptr, struct process, list);
+            if (min > prc->lifespan)
+            	min = prc->lifespan;
+        }
+
+        	list_for_each(ptr, &readyqueue){
+            	prc = list_entry(ptr, struct process, list);
+            	if (min == prc->lifespan){
+                	list_del_init(&prc->list);
+                	return prc;
+            	}
+        	}
+		
+    }
+
+	return prc;
+
+}
+
 struct scheduler srtf_scheduler = {
 	.name = "Shortest Remaining Time First",
 	.acquire = fcfs_acquire, /* Use the default FCFS acquire() */
@@ -241,17 +354,53 @@ struct scheduler srtf_scheduler = {
 	/* You need to check the newly created processes to implement SRTF.
 	 * Use @forked() callback to mark newly created processes */
 	/* Obviously, you should implement srtf_schedule() and attach it here */
+    .schedule = srtf_schedule,
 };
 
 
 /***********************************************************************
  * Round-robin scheduler
  ***********************************************************************/
+int ticks_cnt=-1; 
+
+static struct process *rr_schedule(void)
+{
+    struct process* prc = NULL;
+	ticks_cnt++;
+
+	if (!current || current->status == PROCESS_WAIT) { 
+		goto pick_next;
+	}
+    /* The current process has remaining lifetime. Schedule it again */
+	if (current->age < current->lifespan) { //current가 돌고 있어도 타임퀀텀(=1) 지나면 preemption
+	
+		if(ticks == ticks_cnt){ //preemption
+			if (!list_empty(&readyqueue)) {
+				prc = list_first_entry(&readyqueue, struct process, list);
+				list_del_init(&prc->list);
+
+				//if(current->lifespan!=0)
+					list_add_tail(&current->list, &readyqueue);
+				return prc;
+			}		
+		}		
+		return current;
+	}
+
+pick_next:
+	if (!list_empty(&readyqueue)) {
+		prc = list_first_entry(&readyqueue, struct process, list);
+		list_del_init(&prc->list);
+	}
+	return prc;
+}
+
 struct scheduler rr_scheduler = {
 	.name = "Round-Robin",
 	.acquire = fcfs_acquire, /* Use the default FCFS acquire() */
 	.release = fcfs_release, /* Use the default FCFS release() */
 	/* Obviously, you should implement rr_schedule() and attach it here */
+	.schedule = rr_schedule,
 };
 
 

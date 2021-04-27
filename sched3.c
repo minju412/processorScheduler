@@ -687,56 +687,62 @@ bool prio_acquire(int resource_id){
 
 	struct resource *r = resources + resource_id;
 
-	//확인용
-	struct list_head* ptr;
-	struct process* prc = NULL;
+    //확인용
+    //int cnt=0;
+	// struct list_head* ptr;
+	// struct process* prc = NULL;
+	// list_for_each(ptr, &r->waitqueue){
+    // 	prc = list_entry(ptr, struct process, list);
+	// 	printf("r->waitqueue:%d\n", prc->pid);
+    // }
+
+
+    printf("*****start*****\n");
 
 	if (!r->owner) {
-		//dump_status();
 		r->owner = current;
-		printf("currentid=%d\n", current->pid);
+		
 		current->status = PROCESS_WAIT;
-		list_add_tail(&current->list, &r->waitqueue);
+		list_add_tail(&current->list, &r->waitqueue);  
 
+        //dump_status();
+ 
 		return true;
 	}
 	else if(r->owner){
-	//else if(!list_empty(&r->waitqueue)){
-		//dump_status();
-		
-		if(current->pid != r->owner->pid){
-			//dump_status();
-			current->status = PROCESS_WAIT;
-			list_add_tail(&current->list, &r->waitqueue);
+		//printf("owner existing\n");
+		current->status = PROCESS_WAIT;
+    	list_add_tail(&current->list, &r->waitqueue);
 
-			//확인용
-			// list_for_each(ptr, &r->waitqueue){
-            // 	prc = list_entry(ptr, struct process, list);
-			// 	printf("r->waitqueue:%d\n", prc->pid);
-        	// }
-
-			return false;
-		}
-		//else if(!list_empty(&r->waitqueue)){
-		// printf("curid=%d ownerid=%d\n", current->pid, r->owner->pid);
-		// current->status = PROCESS_WAIT;
-		// list_add_tail(&current->list, &r->waitqueue);
-		printf("helloooo\n");
-
-		//return false;
-		return true;
-		//}
+		return false;
 	}
 
-	// current->status = PROCESS_WAIT;
-	// list_add_tail(&current->list, &r->waitqueue);
-	// return false;
+	
+
+
+    // else if(r->owner){
+	
+	// //blocked
+    // current->status = PROCESS_WAIT;
+    // list_add_tail(&current->list, &r->waitqueue);
+
+    // // list_for_each(ptr, &r->waitqueue){
+    // //         prc = list_entry(ptr, struct process, list);
+    // //         cnt++;
+    // //     }
+    // // if(cnt>0){
+    // //     printf("cnt>0\n");
+    // // }
+    
+    // return false;
+    // }
 }
 
 void prio_release(int resource_id){
 
 	//추가
 	int max=0;
+	int cnt=0; //확인용
 	struct list_head* ptr;
 	struct process* prc = NULL;
 
@@ -747,14 +753,18 @@ void prio_release(int resource_id){
 
 	list_for_each(ptr, &r->waitqueue){
         prc = list_entry(ptr, struct process, list);
-		if(max < prc->prio)
-			max = prc->prio;
+		// if(max < prc->prio)
+		// 	max = prc->prio;
+		cnt++;
     }
+    //printf("max=%d\n", max); //확인용
+	//printf("cnt=%d\n", cnt); //확인용
 
 	//놓을 때는 어떻게 처리할건지?
 	if (!list_empty(&r->waitqueue)) {
 		// struct process *waiter =
 		// 	list_first_entry(&r->waitqueue, struct process, list);
+		printf("max=%d\n", max); //확인용
 
 		//wake up high priority waiter! 
 		list_for_each(ptr, &r->waitqueue){
