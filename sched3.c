@@ -687,36 +687,28 @@ bool prio_acquire(int resource_id){
 
 	struct resource *r = resources + resource_id;
 
-    //확인용
-    //int cnt=0;
-	// struct list_head* ptr;
-	// struct process* prc = NULL;
-	// list_for_each(ptr, &r->waitqueue){
-    // 	prc = list_entry(ptr, struct process, list);
-	// 	printf("r->waitqueue:%d\n", prc->pid);
-    // }
-
-
-    printf("*****start*****\n");
-
+	//dump_status();
 	if (!r->owner) {
 		r->owner = current;
-		
-		//current->status = PROCESS_WAIT;
-		//list_add_tail(&current->list, &r->waitqueue);  
-
-        //dump_status();
- 
+		printf("%d\n", r->owner->pid);
+		// current->status = PROCESS_WAIT;
+    	// list_add_tail(&current->list, &r->waitqueue);
 		return true;
 	}
-	else if(r->owner){
-		//printf("owner existing\n");
-		current->status = PROCESS_WAIT;
-    	list_add_tail(&current->list, &r->waitqueue);
+	
+	printf("okayyyy\n");
+	current->status = PROCESS_WAIT;
+    list_add_tail(&current->list, &r->waitqueue);
+		
+		// if(r->owner->status == PROCESS_WAIT){
+		// 	printf("current=%d\n", current->pid);
+		// 	printf("r->owner=%d\n", r->owner->pid);
+		// 	current=r->owner;
+		// 	r->owner->status = PROCESS_RUNNING; //?
+		// 	list_del_init(&r->owner->list); //?
+		// }
 
-		return false;
-	}
-
+	return false;
 }
 
 void prio_release(int resource_id){
@@ -729,22 +721,27 @@ void prio_release(int resource_id){
 
 	struct process* waiter = NULL;
 	struct resource *r = resources + resource_id;
+
 	assert(r->owner == current);
 	r->owner = NULL;
 
 	list_for_each(ptr, &r->waitqueue){
         prc = list_entry(ptr, struct process, list);
-		// if(max < prc->prio)
-		// 	max = prc->prio;
 		cnt++;
     }
     //printf("max=%d\n", max); //확인용
-	//printf("cnt=%d\n", cnt); //확인용
+	printf("cnt=%d\n", cnt); //확인용
 
 	//놓을 때는 어떻게 처리할건지?
 	if (!list_empty(&r->waitqueue)) {
 		// struct process *waiter =
 		// 	list_first_entry(&r->waitqueue, struct process, list);
+		//printf("max=%d\n", max); //확인용
+		list_for_each(ptr, &r->waitqueue){
+        	prc = list_entry(ptr, struct process, list);
+			if(max < prc->prio)
+				max = prc->prio;
+    	}
 		printf("max=%d\n", max); //확인용
 
 		//wake up high priority waiter! 
