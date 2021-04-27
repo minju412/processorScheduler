@@ -415,10 +415,8 @@ bool prio_acquire(int resource_id){
 
 	if (!r->owner) {
 		r->owner = current;
-		
-		//current->status = PROCESS_WAIT;
-		//list_add_tail(&current->list, &r->waitqueue);  
-
+		current->status = PROCESS_WAIT; 
+		list_add_tail(&current->list, &readyqueue);
 		return true;
 	}
 	current->status = PROCESS_WAIT;
