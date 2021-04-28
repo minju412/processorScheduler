@@ -639,8 +639,7 @@ bool pcp_acquire(int resource_id){
 	if (!r->owner) {
 		r->owner = current;
 
-        r->owner->prio=MAX_PRIO; //??
-        //printf("r->owner->prio=%d\n", r->owner->prio);
+        r->owner->prio=MAX_PRIO; 
 
 		current->status = PROCESS_WAIT; 
 		list_add_tail(&current->list, &readyqueue);
@@ -662,8 +661,7 @@ void pcp_release(int resource_id){
 
 	assert(r->owner == current);
 
-    r->owner->prio = r->owner->prio_orig; //??
-    //printf("r->owner->prio=%d\n", r->owner->prio);
+    r->owner->prio = r->owner->prio_orig; 
 
 	r->owner = NULL;
 
@@ -729,11 +727,6 @@ static struct process *pcp_schedule(void){
                 preemption_flag=1;
                 goto pick_next;          
             }
-            // list_for_each(ptr, &readyqueue){
-            //     prc = list_entry(ptr, struct process, list);
-            //     if(prc->prio < MAX_PRIO)
-            //         prc->prio++;              
-            // }
         }
 		current->prio = current->prio_orig;
 		return current;
@@ -752,9 +745,7 @@ pick_next:
 				flag=1;
 				next=prc;
             }
-			// else if(prc->prio < MAX_PRIO){
-			// 	prc->prio++;
-			// }
+			
         }
         list_del_init(&next->list);
         next->prio = next->prio_orig;
@@ -777,9 +768,73 @@ struct scheduler pcp_scheduler = {
 /***********************************************************************
  * Priority scheduler with priority inheritance protocol
  ***********************************************************************/
+bool pip_acquire(int resource_id){
+    struct resource *r = resources + resource_id;
+
+	if (!r->owner) {
+		r->owner = current;
+
+		current->status = PROCESS_WAIT; 
+		list_add_tail(&current->list, &readyqueue);
+		return true;
+	}
+    if(r->owner->prio < current->prio){
+        r->owner->prio = current->prio; 
+        //printf("inherit!\n");
+    }
+
+	current->status = PROCESS_WAIT;
+    list_add_tail(&current->list, &r->waitqueue);
+
+	return false;
+ }
+void pip_release(int resource_id){
+     int max=0;
+    int cnt=0;
+	struct list_head* ptr;
+	struct process* prc = NULL;
+
+	struct process* waiter = NULL;
+	struct resource *r = resources + resource_id;
+
+	assert(r->owner == current);
+
+    r->owner->prio = r->owner->prio_orig; //
+
+	r->owner = NULL;
+
+	list_for_each(ptr, &r->waitqueue){
+        prc = list_entry(ptr, struct process, list);
+		cnt++;
+    }
+
+	if (!list_empty(&r->waitqueue)) {
+	
+		list_for_each(ptr, &r->waitqueue){
+        	prc = list_entry(ptr, struct process, list);
+			if(max < prc->prio)
+				max = prc->prio;
+    	}
+		
+		list_for_each(ptr, &r->waitqueue){
+            prc = list_entry(ptr, struct process, list);
+			if(prc->prio==max){
+				waiter = prc;
+				goto next;
+			}
+        }
+
+		next:
+		assert(waiter->status == PROCESS_WAIT);
+		list_del_init(&waiter->list);
+		waiter->status = PROCESS_READY;
+		list_add_tail(&waiter->list, &readyqueue);
+	}
+}
+
 struct scheduler pip_scheduler = {
 	.name = "Priority + PIP Protocol",
-	/**
-	 * Ditto
-	 */
+	.acquire = pip_acquire,
+	.release = pip_release,
+	.schedule = pcp_schedule,
 };
