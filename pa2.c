@@ -553,9 +553,7 @@ static struct process *pa_schedule(void){
     list_for_each(ptr, &readyqueue){
             prc = list_entry(ptr, struct process, list);
             cnt++;
-			//printf("prc%d prio:%d\n", prc->pid, prc->prio);
         }
-    //printf("cnt=%d\n", cnt);
 	
     if (!current || current->status == PROCESS_WAIT) {
 		goto pick_next;
@@ -567,25 +565,18 @@ static struct process *pa_schedule(void){
 			
             list_for_each(ptr, &readyqueue){
                 prc = list_entry(ptr, struct process, list);
-                //printf("prc->prio:%d\n", prc->prio);
                 if (max < prc->prio)
                     max = prc->prio;
             }
-            //printf("currnet->prio=%d max=%d\n",current->prio, max);
             
-            if(current->prio < max){ //preemption!
-                //printf("preemption!!\n");
-                list_add(&current->list, &readyqueue);
-
-                // list_del_init(&prc->list);
-                // list_add(&current->list, &readyqueue);
+            if(current->prio <= max){ //preemption!
+                list_add_tail(&current->list, &readyqueue);
 
                 preemption_flag=1;
                 goto pick_next;
                 
             }
 
-            //}
             list_for_each(ptr, &readyqueue){
                 prc = list_entry(ptr, struct process, list);
                 if(prc->prio < MAX_PRIO)
@@ -593,17 +584,11 @@ static struct process *pa_schedule(void){
             }
         }
 		current->prio = current->prio_orig;
-		//printf("current=%d\n", current->pid);
-		//list_del_init(&current->list);
+		
 		return current;
 	}
 
 pick_next:
-
-    // list_for_each(ptr, &readyqueue){
-    //         prc = list_entry(ptr, struct process, list);
-    //         cnt++;
-    //     }
 
     if(cnt!=0){
 
@@ -617,12 +602,7 @@ pick_next:
             prc = list_entry(ptr, struct process, list);
             if (max == prc->prio && flag==0){
 				flag=1;
-                //list_del_init(&prc->list);
 				next=prc;
-				// if(preemption_flag==1)
-				// 	list_add_tail(&current->list, &readyqueue);
-
-                //return prc;
             }
 			else if(prc->prio < MAX_PRIO){
 				prc->prio++;

@@ -838,9 +838,9 @@ struct scheduler prio_scheduler = {
             }
             //printf("currnet->prio=%d max=%d\n",current->prio, max);
             
-            if(current->prio < max){ //preemption!
+            if(current->prio <= max){ //preemption!
                 //printf("preemption!!\n");
-                list_add(&current->list, &readyqueue);
+                list_add_tail(&current->list, &readyqueue);
 
                 // list_del_init(&prc->list);
                 // list_add(&current->list, &readyqueue);
