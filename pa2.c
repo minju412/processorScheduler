@@ -780,14 +780,13 @@ bool pip_acquire(int resource_id){
 	}
     if(r->owner->prio < current->prio){
         r->owner->prio = current->prio; 
-        //printf("inherit!\n");
     }
-
 	current->status = PROCESS_WAIT;
     list_add_tail(&current->list, &r->waitqueue);
 
 	return false;
  }
+
 void pip_release(int resource_id){
      int max=0;
     int cnt=0;
@@ -832,9 +831,68 @@ void pip_release(int resource_id){
 	}
 }
 
+static struct process *pip_schedule(void){
+    struct list_head* ptr;
+    struct process* prc = NULL;
+	struct process* next = NULL;
+
+    int max=0; //prio의 max 찾기 위해
+    int cnt=0;
+	int flag=0;
+	int preemption_flag=0;
+
+	
+    list_for_each(ptr, &readyqueue){
+            prc = list_entry(ptr, struct process, list);
+            cnt++;
+        }
+	
+    if (!current || current->status == PROCESS_WAIT) {
+		goto pick_next;
+	}
+	if (current->age < current->lifespan) {		
+		if(cnt!=0){			
+            list_for_each(ptr, &readyqueue){
+                prc = list_entry(ptr, struct process, list);
+                if (max < prc->prio){
+                    max = prc->prio;
+                }
+            }    
+
+            if(current->prio <= max){ //preemption!
+                list_add_tail(&current->list, &readyqueue);
+                preemption_flag=1;
+                goto pick_next;          
+            }
+          
+        }
+		return current;
+	}
+
+pick_next:
+    if(cnt!=0){
+		 list_for_each(ptr, &readyqueue){
+            prc = list_entry(ptr, struct process, list);
+            if (max < prc->prio)
+                max = prc->prio;
+        }
+
+        list_for_each(ptr, &readyqueue){
+            prc = list_entry(ptr, struct process, list);
+            if (max == prc->prio && flag==0){
+				flag=1;
+				next=prc;
+            }
+			
+        }
+        list_del_init(&next->list);
+	}
+	return next;
+}
+
 struct scheduler pip_scheduler = {
 	.name = "Priority + PIP Protocol",
 	.acquire = pip_acquire,
 	.release = pip_release,
-	.schedule = pcp_schedule,
+	.schedule = pip_schedule,
 };
