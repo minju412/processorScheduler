@@ -687,45 +687,18 @@ bool prio_acquire(int resource_id){
 
 	struct resource *r = resources + resource_id;
 
-
-
-	//dump_status();
 	if (!r->owner) {
 		r->owner = current;
-		
-		// current->status = PROCESS_RUNNING;
-    	// list_del_init(&current->list);
 
 		current->status = PROCESS_WAIT;
-    	//list_add_tail(&current->list, &r->waitqueue);
 		list_add_tail(&current->list, &readyqueue);
-
 
 		return true;
 	}
 	
-	
 	current->status = PROCESS_WAIT;
     list_add_tail(&current->list, &r->waitqueue);
-	//dump_status();
-		
-		// if(!list_empty(&r->waitqueue)){
-		// 	printf("current:%d owner:%d\n", current->pid, r->owner->pid);
-			
-		// 	current->status = PROCESS_WAIT;
-   		// 	list_add_tail(&current->list, &r->waitqueue);
-		// 	r->owner->status = PROCESS_RUNNING; //?
-		// 	//list_del_init(&r->owner->list); //?
-
-		// // //if(r->owner->status == PROCESS_WAIT){
-		// // 	printf("okkkkk\n");
-		// // 	current = list_first_entry(&r->waitqueue, struct process, list);
-		// // 	printf("current=%d\n", current->pid);
-		// // 	//current=r->owner;
-		// // 	r->owner->status = PROCESS_RUNNING; //?
-		// // 	list_del_init(&r->owner->list); //?
-		// }
-
+	
 	return false;
 }
 
@@ -733,7 +706,6 @@ void prio_release(int resource_id){
 
 	//추가
 	int max=0;
-	int cnt=0; //확인용
 	struct list_head* ptr;
 	struct process* prc = NULL;
 
@@ -743,24 +715,14 @@ void prio_release(int resource_id){
 	assert(r->owner == current);
 	r->owner = NULL;
 
-	list_for_each(ptr, &r->waitqueue){
-        prc = list_entry(ptr, struct process, list);
-		cnt++;
-    }
-    //printf("max=%d\n", max); //확인용
-	//printf("cnt=%d\n", cnt); //확인용
-
-	//놓을 때는 어떻게 처리할건지?
 	if (!list_empty(&r->waitqueue)) {
 		// struct process *waiter =
 		// 	list_first_entry(&r->waitqueue, struct process, list);
-		//printf("max=%d\n", max); //확인용
 		list_for_each(ptr, &r->waitqueue){
         	prc = list_entry(ptr, struct process, list);
 			if(max < prc->prio)
 				max = prc->prio;
     	}
-		//printf("max=%d\n", max); //확인용
 
 		//wake up high priority waiter! 
 		list_for_each(ptr, &r->waitqueue){
@@ -782,7 +744,7 @@ void prio_release(int resource_id){
 
  static struct process *prio_schedule(void)
  {
-	 //숫자가 클수록 priority 높은 것
+	//숫자가 클수록 priority 높은 것
 	struct list_head* ptr;
     struct process* prc = NULL;
 
@@ -842,20 +804,114 @@ struct scheduler prio_scheduler = {
 /***********************************************************************
  * Priority scheduler with aging
  ***********************************************************************/
-// bool pa_acquire(int resource_id){
-// }
+ static struct process *pa_schedule(void){
+	 //숫자가 클수록 priority 높은 것
+	struct list_head* ptr;
+    struct process* prc = NULL;
+	struct process* next = NULL;
 
-// void pa_release(int resource_id){
-// }
+    int max=0; //prio의 max 찾기 위해
+    int cnt=0;
+	int flag=0;
+	int preemption_flag=0;
+	
+    list_for_each(ptr, &readyqueue){
+            prc = list_entry(ptr, struct process, list);
+            cnt++;
+			//printf("prc%d prio:%d\n", prc->pid, prc->prio);
+        }
+	
+    if (!current || current->status == PROCESS_WAIT) {
+		goto pick_next;
+	}
+    /* The current process has remaining lifetime. Schedule it again */
+	if (current->age < current->lifespan) {
+		
+		if(cnt!=0){
+			
+		list_for_each(ptr, &readyqueue){
+            prc = list_entry(ptr, struct process, list);
+			//printf("prc->prio:%d\n", prc->prio);
+            if (max < prc->prio)
+                max = prc->prio;
+        }
+		//printf("currnet->prio=%d max=%d\n",current->prio, max);
+		
+		if(current->prio < max){ //preemption!
+			//printf("preemption!!\n");
+			list_add(&current->list, &readyqueue);
 
-// struct scheduler pa_scheduler = {
-// 	.name = "Priority + aging",
-// 	/**
-// 	 * Implement your own acqure/release function to make priority
-// 	 * scheduler correct.
-// 	 */
-// 	/* Implement your own prio_schedule() and attach it here */
-// };
+			// list_del_init(&prc->list);
+			// list_add(&current->list, &readyqueue);
+
+			preemption_flag=1;
+			goto pick_next;
+			
+		}
+
+		}
+		 list_for_each(ptr, &readyqueue){
+            prc = list_entry(ptr, struct process, list);
+			if(prc->prio < MAX_PRIO){
+				prc->prio++;
+			}
+		 }
+		current->prio = current->prio_orig;
+		//printf("return current!\n");
+		//list_del_init(&current->list);
+		return current;
+	}
+
+pick_next:
+
+    // list_for_each(ptr, &readyqueue){
+    //         prc = list_entry(ptr, struct process, list);
+    //         cnt++;
+    //     }
+
+    if(cnt!=0){
+
+		 list_for_each(ptr, &readyqueue){
+            prc = list_entry(ptr, struct process, list);
+            if (max < prc->prio)
+                max = prc->prio;
+        }
+
+        list_for_each(ptr, &readyqueue){
+            prc = list_entry(ptr, struct process, list);
+            if (max == prc->prio && flag==0){
+				flag=1;
+                //list_del_init(&prc->list);
+				next=prc;
+				// if(preemption_flag==1)
+				// 	list_add_tail(&current->list, &readyqueue);
+
+                //return prc;
+            }
+			else if(prc->prio < MAX_PRIO){
+				prc->prio++;
+			}
+        }
+
+	}
+	list_del_init(&next->list);
+	
+	next->prio = next->prio_orig;
+	//printf("return next!\n");
+	return next;
+ }
+
+struct scheduler pa_scheduler = {
+	.name = "Priority + aging",
+	/**
+	 * Implement your own acqure/release function to make priority
+	 * scheduler correct.
+	 */
+	/* Implement your own prio_schedule() and attach it here */
+	.acquire = prio_acquire,
+	.release = prio_release,
+	.schedule = pa_schedule,
+};
 
 
 
@@ -1012,7 +1068,7 @@ int main(int argc, char * const argv[])
 			sched = &prio_scheduler;
 			break;
 		case 'a':
-			//sched = &pa_scheduler;
+			sched = &pa_scheduler;
 			break;
 		case 'i':
 			//sched = &pip_scheduler;
