@@ -633,12 +633,144 @@ struct scheduler pa_scheduler = {
 /***********************************************************************
  * Priority scheduler with priority ceiling protocol
  ***********************************************************************/
+bool pcp_acquire(int resource_id){
+    struct resource *r = resources + resource_id;
+
+	if (!r->owner) {
+		r->owner = current;
+
+        r->owner->prio=MAX_PRIO; //??
+        //printf("r->owner->prio=%d\n", r->owner->prio);
+
+		current->status = PROCESS_WAIT; 
+		list_add_tail(&current->list, &readyqueue);
+		return true;
+	}
+	current->status = PROCESS_WAIT;
+    list_add_tail(&current->list, &r->waitqueue);
+
+	return false;
+}
+void pcp_release(int resource_id){
+    int max=0;
+    int cnt=0;
+	struct list_head* ptr;
+	struct process* prc = NULL;
+
+	struct process* waiter = NULL;
+	struct resource *r = resources + resource_id;
+
+	assert(r->owner == current);
+
+    r->owner->prio = r->owner->prio_orig; //??
+    //printf("r->owner->prio=%d\n", r->owner->prio);
+
+	r->owner = NULL;
+
+	list_for_each(ptr, &r->waitqueue){
+        prc = list_entry(ptr, struct process, list);
+		cnt++;
+    }
+
+	//놓을 때는 어떻게 처리할건지?
+	if (!list_empty(&r->waitqueue)) {
+	
+		list_for_each(ptr, &r->waitqueue){
+        	prc = list_entry(ptr, struct process, list);
+			if(max < prc->prio)
+				max = prc->prio;
+    	}
+		
+		list_for_each(ptr, &r->waitqueue){
+            prc = list_entry(ptr, struct process, list);
+			if(prc->prio==max){
+				waiter = prc;
+				goto next;
+			}
+        }
+
+		next:
+		assert(waiter->status == PROCESS_WAIT);
+		list_del_init(&waiter->list);
+		waiter->status = PROCESS_READY;
+		list_add_tail(&waiter->list, &readyqueue);
+	}
+
+}
+
+static struct process *pcp_schedule(void){
+    struct list_head* ptr;
+    struct process* prc = NULL;
+	struct process* next = NULL;
+
+    int max=0; //prio의 max 찾기 위해
+    int cnt=0;
+	int flag=0;
+	int preemption_flag=0;
+	
+    list_for_each(ptr, &readyqueue){
+            prc = list_entry(ptr, struct process, list);
+            cnt++;
+        }
+	
+    if (!current || current->status == PROCESS_WAIT) {
+		goto pick_next;
+	}
+    /* The current process has remaining lifetime. Schedule it again */
+	if (current->age < current->lifespan) {		
+		if(cnt!=0){			
+            list_for_each(ptr, &readyqueue){
+                prc = list_entry(ptr, struct process, list);
+                if (max < prc->prio)
+                    max = prc->prio;
+            }         
+            if(current->prio <= max){ //preemption!
+                list_add_tail(&current->list, &readyqueue);
+                preemption_flag=1;
+                goto pick_next;          
+            }
+            // list_for_each(ptr, &readyqueue){
+            //     prc = list_entry(ptr, struct process, list);
+            //     if(prc->prio < MAX_PRIO)
+            //         prc->prio++;              
+            // }
+        }
+		current->prio = current->prio_orig;
+		return current;
+	}
+
+pick_next:
+    if(cnt!=0){
+		 list_for_each(ptr, &readyqueue){
+            prc = list_entry(ptr, struct process, list);
+            if (max < prc->prio)
+                max = prc->prio;
+        }
+        list_for_each(ptr, &readyqueue){
+            prc = list_entry(ptr, struct process, list);
+            if (max == prc->prio && flag==0){
+				flag=1;
+				next=prc;
+            }
+			// else if(prc->prio < MAX_PRIO){
+			// 	prc->prio++;
+			// }
+        }
+        list_del_init(&next->list);
+        next->prio = next->prio_orig;
+	}
+	return next;
+}
+
 struct scheduler pcp_scheduler = {
 	.name = "Priority + PCP Protocol",
 	/**
 	 * Implement your own acqure/release function too to make priority
 	 * scheduler correct.
 	 */
+    .acquire = pcp_acquire,
+	.release = pcp_release,
+	.schedule = pcp_schedule,
 };
 
 
