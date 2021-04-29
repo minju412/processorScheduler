@@ -320,19 +320,16 @@ static struct process *srtf_schedule(void)
 	}
 
 pick_next:
-	
 	list_for_each(ptr, &readyqueue){
             prc = list_entry(ptr, struct process, list);
             cnt++;
         }
-
     if(cnt!=0){
         list_for_each(ptr, &readyqueue){
             prc = list_entry(ptr, struct process, list);
             if (min > prc->lifespan)
             	min = prc->lifespan;
         }
-
         	list_for_each(ptr, &readyqueue){
             	prc = list_entry(ptr, struct process, list);
             	if (min == prc->lifespan){
@@ -340,11 +337,8 @@ pick_next:
                 	return prc;
             	}
         	}
-		
     }
-
 	return prc;
-
 }
 
 struct scheduler srtf_scheduler = {
@@ -371,7 +365,6 @@ static struct process *rr_schedule(void)
 	if (!current || current->status == PROCESS_WAIT) { 
 		goto pick_next;
 	}
-    /* The current process has remaining lifetime. Schedule it again */
 	if (current->age < current->lifespan) { //current가 돌고 있어도 타임퀀텀(=1) 지나면 preemption
 	
 		if(ticks == ticks_cnt){ //preemption
@@ -379,8 +372,7 @@ static struct process *rr_schedule(void)
 				prc = list_first_entry(&readyqueue, struct process, list);
 				list_del_init(&prc->list);
 
-				//if(current->lifespan!=0)
-					list_add_tail(&current->list, &readyqueue);
+				list_add_tail(&current->list, &readyqueue);
 				return prc;
 			}		
 		}		
@@ -430,7 +422,7 @@ bool prio_acquire(int resource_id){
 void prio_release(int resource_id){
 
 	int max=0;
-	int cnt=0; //확인용
+	int cnt=0; 
 	struct list_head* ptr;
 	struct process* prc = NULL;
 
@@ -444,20 +436,14 @@ void prio_release(int resource_id){
         prc = list_entry(ptr, struct process, list);
 		cnt++;
     }
-    //printf("max=%d\n", max); //확인용
-	//printf("cnt=%d\n", cnt); //확인용
 
 	//놓을 때는 어떻게 처리할건지?
 	if (!list_empty(&r->waitqueue)) {
-		// struct process *waiter =
-		// 	list_first_entry(&r->waitqueue, struct process, list);
-		//printf("max=%d\n", max); //확인용
 		list_for_each(ptr, &r->waitqueue){
         	prc = list_entry(ptr, struct process, list);
 			if(max < prc->prio)
 				max = prc->prio;
     	}
-		//printf("max=%d\n", max); //확인용
 
 		//wake up high priority waiter! 
 		list_for_each(ptr, &r->waitqueue){
@@ -489,7 +475,6 @@ void prio_release(int resource_id){
     if (!current || current->status == PROCESS_WAIT) {
 		goto pick_next;
 	}
-    /* The current process has remaining lifetime. Schedule it again */
 	if (current->age < current->lifespan) {
 		return current;
 	}
@@ -558,7 +543,6 @@ static struct process *pa_schedule(void){
     if (!current || current->status == PROCESS_WAIT) {
 		goto pick_next;
 	}
-    /* The current process has remaining lifetime. Schedule it again */
 	if (current->age < current->lifespan) {
 		
 		if(cnt!=0){
@@ -714,7 +698,6 @@ static struct process *pcp_schedule(void){
     if (!current || current->status == PROCESS_WAIT) {
 		goto pick_next;
 	}
-    /* The current process has remaining lifetime. Schedule it again */
 	if (current->age < current->lifespan) {		
 		if(cnt!=0){			
             list_for_each(ptr, &readyqueue){
@@ -764,35 +747,23 @@ struct scheduler pcp_scheduler = {
 	.schedule = pcp_schedule,
 };
 
-
 /***********************************************************************
  * Priority scheduler with priority inheritance protocol
  ***********************************************************************/
 bool pip_acquire(int resource_id){
-	//printf("=====acquire=====\n");
     struct resource *r = resources + resource_id;
-
-	//순회하기 위해
 	struct list_head* ptr;
-	struct list_head* ptr2;
-    //struct resource* rsc = NULL;
 	struct process* prc = NULL;
-
-	int flag=0;
 
 	if (!r->owner) {
 		r->owner = current;
-
-		//current->status = PROCESS_WAIT; 
-		//list_add_tail(&current->list, &readyqueue);
 		return true;
 	}
 
     if(r->owner->prio < current->prio){
+		//예시
 		//내(P1)가 잡고싶은 리소스(B)를 잡고있는 주인(P2)의 prio 상승 //원래
-
-		//주인(P2)이 잡고싶은 또다른 리소스(A)를 잡고있는 주인(P3)의 prio도 덩달아 상승
-		//OR 주인(P2)이 누군가(P3)에게 prio 상승해준적 있으면, 그 누군가(P3)의 prio도 덩달아 상승
+		//주인(P2)이 누군가(P3)에게 prio 상승해준적 있으면, 그 누군가(P3)의 prio도 덩달아 상승
 
 		//레디큐 순회하면서 주인(P2)과 같은 prio 가진 프로세스(P3) 있다면?
 		list_for_each(ptr, &readyqueue){
@@ -800,14 +771,12 @@ bool pip_acquire(int resource_id){
 			if(prc->prio == r->owner->prio && prc->prio_orig < r->owner->prio){
 				//이 경우에는 주인(P2)이 prc(P3)에게 prio를 상속해준 것
 				prc->prio = current->prio; //prc의 prio까지 덩달아 상승시켜줌
-				flag=1;
 			}
         }      
 		r->owner->prio = current->prio;
 
     }
 
-//next:
 	current->status = PROCESS_WAIT;
     list_add_tail(&current->list, &r->waitqueue);
 
@@ -815,9 +784,6 @@ bool pip_acquire(int resource_id){
  }
 
 void pip_release(int resource_id){
-
-	//printf("=====release=====\n");
-
     int max=0;
     int cnt=0;
 	struct list_head* ptr;
@@ -844,11 +810,9 @@ void pip_release(int resource_id){
 			if(max < prc->prio)
 				max = prc->prio;
     	}
-		//printf("max=%d\n", max);
 		list_for_each(ptr, &r->waitqueue){
             prc = list_entry(ptr, struct process, list);
 			if(prc->prio==max){
-				//printf("prc->pid=%d\n", prc->pid);
 				waiter = prc;
 				goto next;
 			}

@@ -1022,20 +1022,14 @@ struct scheduler pcp_scheduler = {
  * Priority scheduler with priority inheritance protocol
  ***********************************************************************/
 bool pip_acquire(int resource_id){
-	//printf("=====acquire=====\n");
     struct resource *r = resources + resource_id;
 
 	//순회하기 위해
 	struct list_head* ptr;
-	struct list_head* ptr2;
-    //struct resource* rsc = NULL;
 	struct process* prc = NULL;
-
-	int flag=0;
 
 	if (!r->owner) {
 		r->owner = current;
-
 		//current->status = PROCESS_WAIT; 
 		//list_add_tail(&current->list, &readyqueue);
 		return true;
@@ -1045,10 +1039,7 @@ bool pip_acquire(int resource_id){
 		//내(P1)가 잡고싶은 리소스(B)를 잡고있는 주인(P2)의 prio 상승 //원래
         //r->owner->prio = current->prio;
 
-		//주인(P2)이 잡고싶은 또다른 리소스(A)를 잡고있는 주인(P3)의 prio도 덩달아 상승
-		//OR 주인(P2)이 누군가(P3)에게 prio 상승해준적 있으면, 그 누군가(P3)의 prio도 덩달아 상승
-
-		//printf("before : r->owner->prio:%d, rsc=%d, flag=%d\n", r->owner->prio,resource_id, flag);
+		//주인(P2)이 누군가(P3)에게 prio 상승해준적 있으면, 그 누군가(P3)의 prio도 덩달아 상승
 
 		//레디큐 순회하면서 주인(P2)과 같은 prio 가진 프로세스(P3) 있다면?
 		list_for_each(ptr, &readyqueue){
@@ -1057,44 +1048,11 @@ bool pip_acquire(int resource_id){
 			//if(prc->prio == r->owner->prio){
 				//이 경우에는 주인(P2)이 prc(P3)에게 prio를 상속해준 것
 				prc->prio = current->prio; //prc의 prio까지 덩달아 상승시켜줌
-				//printf("prc's pid=%d\n", prc->pid);
-				flag=1;
 			}
         }      
-		//printf("after : r->owner->prio:%d, rsc=%d, flag=%d\n", r->owner->prio,resource_id, flag);
 		r->owner->prio = current->prio;
-		//printf("r->owner->pid=%d, r->owner->inherited prio=%d\n", r->owner->pid, r->owner->prio);
-
-		// //if(r->owner->status==PROCESS_WAIT){
-		// if(flag==1){
-		// 	//printf("???\n");
-		// 	//resources[NR_RESOURCES] 배열 순회하면서 
-		// 	//안에 있는 리소스들 모두의 waitqueue 돌아다니면서
-		// 	//그 주인이 붙어있다면, 그 리소스가 뭔지 찾고
-		// 	//그 리소스의 주인의 prio도 상승
-
-		// 	// list_for_each(ptr, &resources){
-		// 	for(int i=0; i<NR_RESOURCES; i++){
-		// 		//rsc = list_entry(ptr, struct resource, list);
-		// 			list_for_each(ptr, &resources[i].waitqueue){
-		// 				printf("resources[%d]'s owner:%d\n", i, resources[i].owner->prio);
-		// 				prc = list_entry(ptr, struct process, list);
-		// 				if(prc->pid == r->owner->pid){ //주인(P2)이 그 리소스(A)를 기다리고 있던거면
-		// 					printf("ccccc\n");
-		// 					resources[i].owner->prio = current->prio; 
-		// 					//rsc->owner->prio = current->prio; //그 리소스(A)의 주인(P3)도 덩달아 prio 상승
-		// 					goto next;
-		// 				}
-		// 			}
-
-          
-       	// 	 }
-
-		// } 
 
     }
-
-//next:
 	current->status = PROCESS_WAIT;
     list_add_tail(&current->list, &r->waitqueue);
 
@@ -1102,9 +1060,6 @@ bool pip_acquire(int resource_id){
  }
 
 void pip_release(int resource_id){
-
-	//printf("=====release=====\n");
-
     int max=0;
     int cnt=0;
 	struct list_head* ptr;
@@ -1115,7 +1070,7 @@ void pip_release(int resource_id){
 
 	assert(r->owner == current);
 
-    r->owner->prio = r->owner->prio_orig; //
+    r->owner->prio = r->owner->prio_orig; 
 
 	r->owner = NULL;
 
@@ -1131,11 +1086,9 @@ void pip_release(int resource_id){
 			if(max < prc->prio)
 				max = prc->prio;
     	}
-		//printf("max=%d\n", max);
 		list_for_each(ptr, &r->waitqueue){
             prc = list_entry(ptr, struct process, list);
 			if(prc->prio==max){
-				//printf("prc->pid=%d\n", prc->pid);
 				waiter = prc;
 				goto next;
 			}
@@ -1214,9 +1167,6 @@ struct scheduler pip_scheduler = {
 	.release = pip_release,
 	.schedule = pip_schedule,
 };
-
-
-
 
 /***********************************************************************
  * The main loop for the scheduler simulation
